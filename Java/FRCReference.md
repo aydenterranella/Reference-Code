@@ -1,5 +1,45 @@
 # FRC Java / WPILib Quick Reference Guide — 2026 Season
 
+> **New to FRC programming?** Welcome! This guide is your one-stop reference for writing robot code in Java using WPILib. Whether you're a rookie team member who just installed VS Code or a veteran brushing up before build season, this document covers everything from basic project setup to advanced path following. Don't try to memorize it all — use it as a lookup reference when you need it.
+
+---
+
+## Before You Start
+
+If you're brand new to FRC programming, make sure you have these set up:
+
+1. **Install WPILib** — Download the [WPILib installer](https://docs.wpilib.org) for your OS. It bundles VS Code, the Java JDK, and all the build tools you need. You do NOT need to install Java separately.
+2. **Learn basic Java** — You should be comfortable with variables, methods, classes, and `if`/`for` statements. You don't need to be an expert — you'll learn a lot by doing.
+3. **Create a robot project** — In VS Code, press `Ctrl+Shift+P` → `WPILib: Create a new project` → choose "Template" → "Java" → "Command Robot". This gives you a working starting point.
+4. **Get familiar with your hardware** — Know which motor controllers (TalonFX, SparkMAX, etc.) and sensors your robot uses. Check the CAN IDs taped on each device.
+
+> **Tip for new coders:** FRC robot code follows a simple loop pattern — your code runs every 20 milliseconds (50 times per second), reading sensors and setting motor outputs each time. Think of it like a game loop: every "frame," you check inputs and decide what the robot should do.
+
+---
+
+## Glossary of Key Terms
+
+New to robotics? Here are the terms you'll see throughout this guide:
+
+| Term | What it means |
+|---|---|
+| **WPILib** | The official library (collection of pre-written code) for FRC robots. It handles motor control, sensors, scheduling, and more. |
+| **RoboRIO** | The brain of the robot — a small computer that runs your Java code. It connects to motors, sensors, and the Driver Station over the network. |
+| **CAN Bus** | A two-wire network that connects smart devices (motor controllers, sensors) on the robot. Each device gets a unique ID number (0–62). Think of it like a shared highway for data. |
+| **CAN ID** | A number (0–62) assigned to each device on the CAN bus. No two devices can share the same ID — if they do, things break silently. |
+| **Subsystem** | A class that "owns" a piece of robot hardware (like the drivetrain or an arm). Only one subsystem should control a given motor. |
+| **Command** | A class that tells a subsystem what to do (like "spin the intake" or "drive forward 2 meters"). Commands have a lifecycle: initialize → execute → end. |
+| **Scheduler** | The part of WPILib that manages which commands are running. It prevents two commands from fighting over the same hardware. |
+| **PID** | A control algorithm (Proportional-Integral-Derivative) that automatically adjusts motor output to reach a target. Like a thermostat, but for robot positions and speeds. |
+| **Odometry** | Estimating the robot's position on the field by tracking wheel rotations and heading over time. It drifts, so it's often combined with vision. |
+| **Feedforward** | A prediction of what motor output you'll need, based on physics. Combined with PID to get faster, smoother control. |
+| **NetworkTables** | The communication system between the robot and your laptop. Dashboard values, camera data, and settings all flow through NetworkTables. |
+| **Deploy** | Sending your compiled code from your laptop to the RoboRIO. In VS Code: `Ctrl+Shift+P` → `WPILib: Deploy Robot Code`. |
+| **Vendor Library** | Third-party code packages (from CTRE, REV, etc.) that add support for specific hardware. Installed through the VS Code palette. |
+| **Driver Station** | Software on your laptop that connects to the robot and lets you enable/disable it, choose auto modes, and see diagnostics. |
+| **Telemetry** | Data sent from the robot to the Driver Station for display (sensor readings, motor speeds, status info). Helps with debugging. |
+| **AprilTag** | A printed visual marker (like a QR code) placed around the FRC field. Cameras detect these to figure out where the robot is. |
+
 ---
 
 ## Table of Contents
@@ -27,6 +67,8 @@
 ---
 
 ## 1. Project Structure
+
+> **Beginner tip:** You don't need to understand Gradle or build systems to get started. Just know that when you hit "Deploy Robot Code" in VS Code, Gradle automatically downloads libraries, compiles your code, and sends it to the robot. It just works.
 
 WPILib projects are built with **Gradle**, a JVM-based build tool. You never need to manage classpaths or JAR files manually — Gradle fetches everything from Maven repositories automatically when you run a build or deploy.
 
@@ -76,6 +118,8 @@ public final class Constants {
 ---
 
 ## 2. Robot Base Classes
+
+> **Beginner tip:** Think of your robot code like a video game running at 50 FPS. Every "frame" (every 20 milliseconds), your code checks sensors, reads controller inputs, and tells motors what to do. The `*Init()` methods run once when a mode starts (like loading a level), and the `*Periodic()` methods run every frame (like the game loop).
 
 ### TimedRobot (simplest, no command framework)
 
@@ -150,6 +194,8 @@ public class Robot extends TimedRobot {
 
 ## 3. Command-Based Programming
 
+> **Beginner tip:** Command-Based is like a restaurant kitchen. **Subsystems** are the kitchen stations (grill, prep station, fryer) — each one owns specific equipment. **Commands** are the orders ("cook a burger," "make fries") — they tell stations what to do. The **Scheduler** is the head chef — it makes sure two orders don't fight over the same station. You don't *have* to use Command-Based (TimedRobot works fine for simple robots), but most FRC teams do because it keeps code organized as the robot gets more complex.
+
 Command-Based is WPILib's recommended framework for organizing robot code. It enforces a clean separation between *what the robot can do* (Subsystems) and *instructions for when and how to do it* (Commands). This makes it easy to reuse actions, compose complex behaviors, and avoid hardware conflicts without writing manual state machines.
 
 ### Core idea
@@ -206,6 +252,8 @@ public class RobotContainer {
 
 ## 4. Subsystems
 
+> **Beginner tip:** A Subsystem is basically a Java class that wraps a piece of your robot's hardware. If your robot has a drivetrain, an arm, and an intake, you'll have three subsystem classes: `DriveSubsystem`, `ArmSubsystem`, and `IntakeSubsystem`. Each one creates its motors in the constructor and exposes simple methods like `setSpeed()` or `stop()`. Start by copying the example below and changing the motor types and CAN IDs to match your robot.
+
 A Subsystem is the **owner** of a piece of hardware. Only one Subsystem should ever write to a given motor controller, sensor, or actuator. This ownership contract is what allows the Command Scheduler to safely manage conflicts.
 
 Subsystems extend `SubsystemBase`, which automatically registers them with the Scheduler so their `periodic()` method is called every loop.
@@ -258,6 +306,14 @@ public class DriveSubsystem extends SubsystemBase {
 ---
 
 ## 5. Commands
+
+> **Beginner tip:** If Subsystems are *what your robot can do*, Commands are *when and how it does it*. A Command is like a recipe with four steps:
+> 1. `initialize()` — "Preheat the oven" (runs once at the start)
+> 2. `execute()` — "Stir continuously" (runs every 20ms while the command is active)
+> 3. `isFinished()` — "Is the food done?" (checked every 20ms; return `true` to stop)
+> 4. `end()` — "Turn off the oven" (runs once when the command stops, always clean up here!)
+>
+> Don't forget `addRequirements()` in the constructor — it's the most common beginner mistake and causes hard-to-debug hardware conflicts.
 
 Commands are the **active logic** of your robot. Each Command defines what to do with one or more Subsystems, and the Scheduler calls its lifecycle methods every loop. Commands are designed to be **composable** — you can chain and nest them rather than writing long procedural auto routines.
 
@@ -394,6 +450,8 @@ driveForward.repeatedly();                      // loops the command forever (re
 
 ## 6. Triggers & Default Commands
 
+> **Beginner tip:** Triggers connect buttons to commands. Instead of writing `if (controller.getAButton()) { ... }` in a loop, you write `btn.whileTrue(command)` once, and WPILib handles the rest. This is one of the biggest "aha!" moments for new programmers — you're not checking buttons yourself, you're *declaring* what should happen. All your button-to-command wiring goes in one method (`configureBindings()`), so it's easy to see the full control scheme at a glance.
+
 Triggers are the **glue** between controller inputs (or any boolean condition) and Commands. Rather than checking button states inside `teleopPeriodic()`, you declare bindings once in `configureBindings()` and the Scheduler handles the rest. This keeps the code declarative and makes it easy to see all control mappings in one place.
 
 ### Button Bindings
@@ -451,6 +509,8 @@ m_drive.setDefaultCommand(
 ---
 
 ## 7. Motor Controllers
+
+> **Beginner tip:** Motor controllers are the boxes that sit between your code and the actual motors. You tell a motor controller "spin at 50% power" in code, and it sends the right voltage to the motor. The two big brands are **CTRE** (TalonFX for Falcon/Kraken motors) and **REV** (SparkMAX for NEO motors). Check what hardware your team has — that determines which code examples below to use. The CAN ID number is usually labeled on a sticker on the controller itself.
 
 FRC teams primarily use CAN bus motor controllers, which communicate via a two-wire CAN network rather than PWM signals. CAN controllers support onboard PID, encoder feedback, and status telemetry. Each device needs a **unique CAN ID** (0–62).
 
@@ -591,6 +651,8 @@ spark.stopMotor();              // Set to 0
 
 ## 8. Sensors
 
+> **Beginner tip:** Sensors are how your robot "sees" and "feels" the world. Without sensors, your robot is driving blind — it has no idea where it is, how fast it's going, or whether it has picked up a game piece. The most common sensors you'll use are **encoders** (measure rotation/distance), **gyroscopes** (measure heading/direction), and **limit switches** (detect when a mechanism has reached its endpoint). Start with encoders and a gyro — they're essential for autonomous.
+
 Sensors provide the robot with feedback about its state and environment. Reliable sensors are the foundation of autonomous control — without good sensor data, PID and path following fall apart.
 
 ### Encoders (general WPILib)
@@ -715,6 +777,8 @@ int proximity   = colorSensor.getProximity();     // 0–2047 — higher = close
 
 ## 9. Joysticks & Controllers
 
+> **Beginner tip:** This section is where you connect your Xbox/PS4 controller to your robot code. The most important thing to remember: **Y-axis is inverted** — pushing the joystick UP gives a NEGATIVE number. That's why you'll see `-controller.getLeftY()` everywhere (the minus sign flips it so "up" = positive). Also, always apply a **deadband** (see bottom of this section) or your robot will slowly creep when nobody is touching the sticks.
+
 All controller input goes through the Driver Station software on a laptop, which sends HID (Human Interface Device) data to the robot over the field network (or USB during practice). The RoboRIO receives it via NetworkTables and WPILib's joystick layer.
 
 ### XboxController (most common)
@@ -797,6 +861,8 @@ double deadbanded = Math.abs(input) < 0.1 ? 0.0 : input;
 ---
 
 ## 10. Drivetrain Types
+
+> **Beginner tip:** Your drivetrain is the single most important subsystem — it's how your robot moves. If this is your first robot, start with **Differential Drive** (also called "tank drive" or "West Coast drive"). It's the simplest to build, wire, and code. **Swerve Drive** is much more powerful (full omnidirectional movement) but significantly harder to set up — most rookie teams shouldn't attempt swerve in their first year.
 
 Choosing the right drivetrain affects maneuverability, complexity, and how you write control code. Most FRC robots use differential or swerve drive.
 
@@ -921,6 +987,8 @@ swerveOdometry.update(gyro.getRotation2d(), modulePositions);
 
 ## 11. PID Control
 
+> **Beginner tip:** PID is like cruise control for your robot. You tell it "I want to be at position X" or "I want to spin at Y speed," and PID automatically adjusts the motor power to get there and stay there. You don't need to understand the full math to use it — start by setting **kP** to a small number (like 0.1), set kI and kD to 0, and increase kP until the mechanism reaches its target. If it oscillates (wobbles back and forth), reduce kP or add a tiny kD. This "tune by feel" approach works surprisingly well for most FRC mechanisms.
+
 PID (Proportional-Integral-Derivative) is a feedback control algorithm that continuously adjusts a motor's output to minimize the error between a measured state (position, velocity) and a desired setpoint. It's the core of almost all precise motion in FRC.
 
 **What each term does:**
@@ -1044,6 +1112,8 @@ SysIdRoutine sysIdRoutine = new SysIdRoutine(
 
 ## 12. PathPlanner & Autonomous
 
+> **Beginner tip:** Autonomous is the 15 seconds at the start of a match where the robot drives itself — no human input allowed. The simplest auto is "drive forward for 2 seconds" using a timer. Once you're comfortable, graduate to **PathPlanner**, which lets you draw paths on a picture of the field using a drag-and-drop GUI tool. It generates all the code to follow those paths automatically. For your first auto, start simple (drive forward, maybe score one game piece) and add complexity later.
+
 Autonomous path following involves commanding the robot to follow a pre-planned path on the field based on its odometry/pose. PathPlanner is the community standard because it provides a GUI path editor, trajectory generation, and tight WPILib integration.
 
 ### PathPlanner (most popular FRC path-following library)
@@ -1162,6 +1232,8 @@ if (auto != null) auto.schedule();
 
 ## 13. SmartDashboard & Shuffleboard
 
+> **Beginner tip:** SmartDashboard is the easiest way to see what your robot is doing. Add `SmartDashboard.putNumber("My Value", someVariable)` in your code, and that value shows up live on your laptop screen. It's incredibly useful for debugging — if a motor isn't behaving right, put its speed on the dashboard and watch what's actually happening. Start with SmartDashboard (simplest), and switch to **Elastic** (the recommended replacement) when you want a prettier layout.
+
 > **2026 deprecation:** Both `SmartDashboard` and `Shuffleboard` are **deprecated for removal in 2027** due to lack of active maintainers. For new projects, use **Elastic** (the new default WPILib dashboard, replaces Shuffleboard) or **AdvantageScope** (powerful log-based visualization). SmartDashboard and Shuffleboard still work in 2026 and the APIs below remain valid — just expect them to be gone next year.
 >
 > Recommended replacements:
@@ -1262,6 +1334,8 @@ inst.addListener(
 ---
 
 ## 15. Vision (Limelight & PhotonVision)
+
+> **Beginner tip:** Vision is an advanced topic — don't feel like you need a camera to be competitive. Many successful FRC teams don't use vision at all, especially in their first few years. If you do want to try it, **Limelight** is the easier option (plug it in, it works out of the box). Vision is most useful for automatically aiming at targets and knowing exactly where you are on the field during autonomous.
 
 Vision systems identify game pieces, scoring targets, and AprilTags on the field. The two dominant systems are **Limelight** (self-contained, runs on-camera) and **PhotonVision** (open-source software, runs on a co-processor like a Raspberry Pi or Orange Pi).
 
@@ -1382,6 +1456,8 @@ poseEstimator.addVisionMeasurement(visionPose, timestamp,
 
 ## 16. Pneumatics
 
+> **Beginner tip:** Pneumatics use air pressure to push pistons in and out — think of a bicycle pump, but in reverse. They're great for mechanisms that only need two positions (extended or retracted), like claw grippers or arm deployments. If your robot doesn't have an air compressor and cylinders, you can skip this section entirely.
+
 Pneumatics use compressed air to actuate cylinders (pistons). Air is stored in a tank and regulated to ~60 PSI operating pressure. The compressor fills the tank automatically. The Pneumatics Control Module (PCM) or Pneumatics Hub (PH) controls solenoid valves that direct air into cylinders.
 
 **Single-acting solenoid:** One coil controls airflow in one direction; a spring returns it. Simpler but only holds one end position firmly.
@@ -1483,6 +1559,8 @@ Pigeon2 imu   = new Pigeon2(0, canivore);
 
 ## 18. Robot Simulation
 
+> **Beginner tip:** Simulation lets you test your robot code on your laptop — no robot needed! This is incredibly useful during the off-season or when the robot is being built. You can test auto routines, verify command logic, and tune PID values without risking damage to hardware. Run it with `./gradlew simulateJava` or use the VS Code command palette.
+
 WPILib's simulation framework lets you test robot code on your laptop without hardware. The simulation uses physics models (DC motor dynamics, kinematics) to produce realistic sensor readings in response to motor commands. This is invaluable for testing auto routines, PID tuning, and command logic without destroying hardware.
 
 **How it works:** Your robot code runs normally. Motor controller outputs are intercepted by simulation classes that compute how the mechanism would respond physically. Simulated sensor readings are fed back into your code as if real hardware was attached.
@@ -1567,6 +1645,8 @@ Vendor libraries add support for hardware and tools not included in WPILib. Each
 ---
 
 ## 20. Common Gotchas & Best Practices
+
+> **Beginner tip:** Read this section! These are the bugs that every FRC team hits at some point. The top three beginner mistakes are: (1) forgetting to invert right-side drivetrain motors (robot spins instead of driving straight), (2) forgetting `addRequirements()` in commands (two commands fight over a motor), and (3) blocking the main loop with `Thread.sleep()` (robot freezes). Knowing these ahead of time will save you hours of debugging.
 
 ### Motor Safety Timeout
 
@@ -1734,6 +1814,26 @@ Debouncer debouncer = new Debouncer(0.1, Debouncer.DebounceType.kBoth);
 // kFalling: only debounce false → true transition
 boolean stable = debouncer.calculate(sensor.get());  // Only true after 0.1s of stable true input
 ```
+
+---
+
+---
+
+## Where to Go Next (for New Coders)
+
+Feeling overwhelmed? Here's a suggested learning path:
+
+1. **Week 1:** Read Sections 1–3 (Project Structure, Robot Base Classes, Command-Based). Create a project and deploy "do nothing" code to verify your setup works.
+2. **Week 2:** Read Sections 4–6 (Subsystems, Commands, Triggers). Write a subsystem for one motor and a command that spins it when you press a button.
+3. **Week 3:** Read Section 9 (Controllers) and Section 10 (Drivetrain). Get the robot driving with joystick control.
+4. **Week 4:** Read Section 7 (Motor Controllers in depth) and Section 8 (Sensors). Add encoder feedback and display values on SmartDashboard (Section 13).
+5. **When ready:** Tackle PID (Section 11) and Autonomous (Section 12) when your team needs precise control or auto routines.
+
+**Helpful resources:**
+- [WPILib Documentation](https://docs.wpilib.org) — the official docs, with tutorials and examples
+- [FRC Discord](https://discord.gg/frc) — thousands of FRC programmers ready to help
+- [Chief Delphi](https://www.chiefdelphi.com) — the FRC community forum (search before posting — your question has probably been asked before!)
+- Example projects in the WPILib VS Code palette (`Ctrl+Shift+P` → `WPILib: Create a new project` → `Example`)
 
 ---
 
